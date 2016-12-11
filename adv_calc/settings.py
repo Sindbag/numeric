@@ -50,7 +50,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'advertisement_server.urls'
+ROOT_URLCONF = 'adv_calc.urls'
 
 TEMPLATES = [
     {
@@ -69,7 +69,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'advertisement_server.wsgi.application'
+WSGI_APPLICATION = 'adv_calc.wsgi.application'
 
 
 # Database

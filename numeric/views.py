@@ -159,7 +159,7 @@ def calc(f, *args, **kwargs):
     return eval(f, kwargs)
 
 
-def tabulate(func, argname, max=1):
+def tabulate(func, argname, max=1, steps=100):
     try:
         logging.info('Trying to parse as CSV file link')
         t = pd.read_csv(func)
@@ -170,6 +170,7 @@ def tabulate(func, argname, max=1):
 
         tabs = [Point(float(x.strip()), float(y.strip()))
                 for x, y in t.values()]
+        ff = solver.interpolate(tabs)
     except Exception as e:
         logging.exception(e)
         logging.info('Could not open as CSV file, try to parse as a text')
@@ -177,12 +178,13 @@ def tabulate(func, argname, max=1):
             tabs = [Point(float(x.strip()), float(y.strip()))
                     for line in func.split('\n')
                     for x, y in line.split(',')]
+            ff = solver.interpolate(tabs)
         except Exception as e:
             logging.exception(e)
             logging.info('Could not parse as text, try to parse as a function')
             f = lambda x: calc(func, **{argname: x})
-            func = solver.freeze(f, 0, max, 100)
-    return func
+            ff = solver.freeze(f, 0, max, 100)
+    return ff
 
 
 def manual(request):
@@ -208,8 +210,8 @@ def manual(request):
                 function,
                 t=x,
                 x=lambda t: t ** 2,
-                S=solver.interpolate(s),
-                z=solver.interpolate(z),
+                S=s,
+                z=z,
                 B=b,
             )
             f = f_b(B)
