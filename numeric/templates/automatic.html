@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load staticfiles %}
+
+{% block navigation %}
+<ul class="nav nav-tabs">
+    <li>
+        <a href="{% url 'manual' %}">Manual</a>
+    </li>
+    <li class="active">
+        <a href="{% url 'auto' %}">Automatic</a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block input %}
+    {% if error %}
+        <p>{{ error }}</p>
+    {% endif %}
+    <h1>Automatic</h1>
+    <form method="POST" class="form-inline">
+        {% csrf_token %}
+        <input class="form-control" id="dens" placeholder="p(w)" name="density"/><br><br>
+        <input class="form-control" id="S" placeholder="S(t)" name="S"/><br><br>
+        <input class="form-control" id="f" placeholder="f(z, x, S, B)" name="function"/><br><br>
+        <label for="B_start">Interval for B (start):</label><br>
+        <input class="form-control" id="B_start" placeholder="B (start)" name="b_start"/><br><br>
+        <label for="B_end">Interval for B (end):</label><br>
+        <input class="form-control" id="B_end" placeholder="B (end)" name="b_end"/><br><br>
+        <input class="form-control" id="z" placeholder="z(t)" name="z"/><br><br>
+        <input class="form-control" id="x_start" placeholder="x_0 = S(0)" name="x_start"/><br><br>
+        <input class="form-control" id="y_start" placeholder="y_0" name="y_start"/><br><br>
+        <input class="form-control" id="r_start" placeholder="Range start" name="r_start"/><br><br>
+        <input class="form-control" id="r_end" placeholder="Range end" name="r_end"/><br><br>
+        <input type="submit" class="btn btn-default" placeholder="calculate"/>
+    </form>
+{% endblock %}
+
+{% block result %}
+{% endblock %}

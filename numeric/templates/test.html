@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load staticfiles %}
+
+{% block navigation %}
+<ul class="nav nav-tabs">
+    <li class="active">
+        <a href="{% url 'tests' %}">Tests</a>
+    </li>
+    <li>
+        <a href="{% url 'manual' %}">Manual</a>
+    </li>
+    <li>
+        <a href="{% url 'auto' %}">Automatic</a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block content %}
+
+{% endblock %}
