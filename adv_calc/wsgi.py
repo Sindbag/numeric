@@ -1,5 +1,5 @@
 """
-WSGI config for advertisement_server project.
+WSGI config for adv_calc project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
