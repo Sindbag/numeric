@@ -240,3 +240,29 @@ class Numeric(object):
 
         f.points = pts
         return f
+
+    def solve(self, f, df, steps=100):
+        def solutioner(x, y, n=steps):
+            for i in range(n):
+                x -= (f(x) - y) / df(x)
+            return x
+
+        return solutioner
+
+    def prepare(self, f, df, s, z):
+        U = self.solve(f, df)
+        u = lambda x: U(0.5, x)
+        return lambda t, x:
+
+    def solve_differential(self, f, x0, steps=100):
+        pts = [Point(0, x0)]
+        for i in range(steps):
+            t1 = i / steps
+            x1 = pts[len(pts) - 1].y
+            k1 = f(t1, x1)
+            k2 = f(t1 + 0.5 / steps, x1 + k1 / steps / 2)
+            k3 = f(t1 + 0.5 / steps, x1 + k2 / steps / 2)
+            k4 = f(t1 + 1 / steps, x1 + k3 / steps)
+            pts.append(Point((i + 1) / steps, x1 + (k1 + 2 * k2 + 2 * k3 + k4) / 6 / steps))
+
+        return self.interpolate(pts)
