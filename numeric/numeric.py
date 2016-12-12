@@ -1,6 +1,8 @@
 import math
 import numpy as np
 
+from views import calc
+
 
 class Bounds(object):
     def __init__(self, x, y, w, h):
@@ -249,10 +251,10 @@ class Numeric(object):
 
         return solutioner
 
-    def prepare(self, f, df, s, z):
+    def prepare(self, f, df, s, z, F):
         U = self.solve(f, df)
         u = lambda x: U(0.5, x)
-        return lambda t, x:
+        return lambda t, x: calc(F, t=t, x=x, p=df, u=u, S=s, z=z)
 
     def solve_differential(self, f, x0, steps=100):
         pts = [Point(0, x0)]

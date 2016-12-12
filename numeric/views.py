@@ -139,7 +139,11 @@ def auto(request):
             z = tabulate(form.cleaned_data['z'], 't', T)
 
             dz = solver.derivative(z)
-            y = solver.integral()
+            U = solver.integral(p, 0, 0, 100)
+            y = solver.prepare(U, p, s, z, function)
+            eq = lambda t, x: dz(t) * (1 - U(y(t, x)))
+            x = solver.solve_differential(eq, 0)
+
 
             b_start = float(form.cleaned_data['b_start'])
             b_end = float(form.cleaned_data['b_end'])
