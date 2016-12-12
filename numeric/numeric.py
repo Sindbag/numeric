@@ -110,10 +110,11 @@ class Numeric(object):
              in enumerate(X)
              for j, cell
              in enumerate(row)]
+
         for i in range(len(X)):
             j = i
             while not U[j][i]:
-                if (j == len(X) - 1):
+                if j == len(X) - 1:
                     return None
 
             if i != j:
@@ -158,6 +159,7 @@ class Numeric(object):
             for j in range(len(A[i])):
                 if i != j and i != j - 1 and i != j + 1 and A[i][j] != 0:
                     return self.dot(self.inv(A), y)
+
         return self.tridiag(
             lambda i: A[i][i - 1],
             lambda i: A[i][i],
