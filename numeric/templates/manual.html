@@ -20,10 +20,10 @@
     <form method="POST" class="form-inline">
         {% csrf_token %}
         {% for field in form %}
+            {{ field.help_text }}:
             {% if field.errors %}
                 <div class="jumbotron alert">{{ field.errors }}</div>
             {% endif %}
-            {{ field.help_text }}:
             {{ field }}
             <br>
         {% endfor %}
