@@ -1,7 +1,12 @@
 import math
 import numpy as np
 
-from views import calc
+
+def calc(f, *args, **kwargs):
+    kwargs['math'] = math
+    kwargs['np'] = np
+    kwargs['clamp'] = lambda f, x, y: max(x, min(y, f))
+    return eval(f, kwargs)
 
 
 class Bounds(object):
@@ -82,6 +87,7 @@ class Numeric(object):
         for i in range(n + 1):
             x = a + (b - a) * (i / n)
             table.append(Point(x, f(x)))
+        # setattr(table, 'points', getattr(f, 'points', None))
         return table
 
     def freeze(self, f, a, b, n=100):
@@ -248,25 +254,39 @@ class Numeric(object):
     def solve(self, f, df, steps=100):
         def solutioner(x, y, n=steps):
             for i in range(n):
-                x -= (f(x) - y) / df(x)
+                x = x - (f(x) - y) / df(x)
             return x
 
         return solutioner
 
-    def prepare(self, f, df, s, z, F):
+    def prepare(self, f, df, s, z, F, **kwargs):
         U = self.solve(f, df)
         u = lambda x: U(0.5, x)
-        return lambda t, x: calc(F, t=t, x=x, p=df, u=u, S=s, z=z)
 
-    def solve_differential(self, f, x0, steps=100):
+        def _f(t, t2):
+            return calc(F, t=t, x=t2, u=u, p=df, S=s, z=z, **kwargs)
+
+        return _f
+
+    def solve_differential(self, f, x0, T, steps=100):
+        if isinstance(x0, list):
+            def mat(x, c, m):
+                return [e + c[i] * m for i, e in enumerate(x)]
+        else:
+            def mat(x, c, m):
+                return x + c * m
+
         pts = [Point(0, x0)]
         for i in range(steps):
-            t1 = i / steps
+            t1 = i * T / steps
             x1 = pts[len(pts) - 1].y
             k1 = f(t1, x1)
-            k2 = f(t1 + 0.5 / steps, x1 + k1 / steps / 2)
-            k3 = f(t1 + 0.5 / steps, x1 + k2 / steps / 2)
-            k4 = f(t1 + 1 / steps, x1 + k3 / steps)
-            pts.append(Point((i + 1) / steps, x1 + (k1 + 2 * k2 + 2 * k3 + k4) / 6 / steps))
+            k2 = f(t1 + 0.5 * T / steps, mat(x1, k1, T / steps / 2))
+            m2 = mat(k1, k2, 2)
+            k3 = f(t1 + 0.5 * T / steps, mat(x1, k2, T / steps / 2))
+            m3 = mat(m2, k3, 2)
+            k4 = f(t1 + T / steps, mat(x1, k3, T / steps))
+            m4 = mat(m3, k4, 1)
+            pts.append(Point((i + 1) * T / steps, mat(x1, m4, T / 6 / steps)))
 
-        return self.interpolate(pts)
+        return pts

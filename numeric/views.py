@@ -7,15 +7,10 @@ import matplotlib.pyplot as plt
 from django.conf import settings
 from django.shortcuts import render
 from numeric.forms import NumericForm
-from numeric.numeric import Numeric, Point
+from numeric.numeric import Numeric, Point, calc
 
 logger = logging.getLogger('Solver')
 solver = Numeric()
-
-
-def calc(f, *args, **kwargs):
-    kwargs['__builtins__'] = None
-    return eval(f, kwargs)
 
 
 def tabulate(func, argname, max=1, steps=100):
@@ -62,6 +57,9 @@ def manual(request):
             s = tabulate(form.cleaned_data['S'], 't', T)
             z = tabulate(form.cleaned_data['z'], 't', T)
 
+            x_st = float(form.cleaned_data['x_start'])
+            y_st = float(form.cleaned_data['y_start'])
+
             B = float(form.cleaned_data['B'])
             steps = int(form.cleaned_data['steps'])
 
@@ -75,23 +73,46 @@ def manual(request):
             )
             f = f_b(B)
 
-            tabs = solver.table(f, 0, T, n=steps)
-            context['tabs'] = tabs
-
+            # tabs = solver.table(f, 0, T, n=steps)
             context['pics'] = []
 
+            u_y = solver.integral(p, 0, 0)
+
+            y = solver.prepare(u_y, p, s, z, function, B=B, T=T)
+            dz = solver.derivative(z)
+
+            ptb_x = lambda t, t2: dz(t) * (1 - u_y( y(t, t2) ))
+
+            pts = solver.solve_differential(ptb_x, x_st, T, steps)
+
+            x = solver.interpolate(pts)
+
+            _y = lambda t: y(t, x(t))
+
+            tabs = solver.table(_y, 0, T, steps)
+            u_y.tabs = solver.table(u_y, 0, 1, steps)
+            context['tabs'] = tabs
+
             fig = plt.figure()
-            plt.title('f')
+            plt.title('y(t)')
             plt.plot([p.x for p in tabs], [p.y for p in tabs])
             fig.savefig(settings.STATIC_DIR + 'somefig.png')
             context['pics'].append('/static/somefig.png')
 
+            x.tabs = solver.table(x, 0, T, steps)
+            s.tabs = solver.table(s, 0, T, steps)
             fig = plt.figure()
-            plt.title('S(t)')
-            s_tabs = solver.table(s, 0, T, steps)
-            plt.plot([p.x for p in s_tabs], [p.y for p in s_tabs])
-            fig.savefig(settings.STATIC_DIR + 's.png')
-            context['pics'].append('/static/s.png')
+            plt.title('x(t)')
+            plt.plot([p.x for p in x.tabs], [p.y for p in x.tabs])
+            plt.plot([p.x for p in s.tabs], [p.y for p in s.tabs], alpha=0.6, color='grey')
+            fig.savefig(settings.STATIC_DIR + 'x.png')
+            context['pics'].append('/static/x.png')
+
+            # fig = plt.figure()
+            # plt.title('S(t)')
+            # plt.plot([p.x for p in s_tabs], [p.y for p in s_tabs])
+            # fig.savefig(settings.STATIC_DIR + 's.png')
+            # context['pics'].append('/static/s.png')
 
             fig = plt.figure()
             plt.title('z(t)')
@@ -102,15 +123,14 @@ def manual(request):
 
             fig = plt.figure()
             plt.title('p(w)')
-            p_tabs = solver.table(p, 0, T, steps)
+            p_tabs = solver.table(p, 0, 1, steps)
             plt.plot([l.x for l in p_tabs], [l.y for l in p_tabs])
             fig.savefig(settings.STATIC_DIR + 'dens.png')
             context['pics'].append('/static/dens.png')
 
             fig = plt.figure()
-            plt.title('P')
-            q = solver.table(solver.integral(p, 0, 0, 100), 0, 1, 100)
-            plt.plot([p.x for p in q], [p.y for p in q])
+            plt.title('U(y)')
+            plt.plot([p.x for p in u_y.tabs], [p.y for p in u_y.tabs])
             fig.savefig(settings.STATIC_DIR + 'prob.png')
             context['pics'].append('/static/prob.png')
 
