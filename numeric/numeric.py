@@ -6,6 +6,7 @@ def calc(f, *args, **kwargs):
     kwargs['math'] = math
     kwargs['np'] = np
     kwargs['clamp'] = lambda f, x, y: max(x, min(y, f))
+    kwargs['solver'] = Numeric()
     return eval(f, kwargs)
 
 
@@ -256,7 +257,7 @@ class Numeric(object):
         u = self.freeze(lambda x: U(0.5, x), 0, 1)
 
         def _f(t, t2):
-            return calc(function, t=t, x=t2, u=u, p=df, S=s, z=z, **kwargs)
+            return calc(function, t=t, x=t2, u=u, U=f, p=df, S=s, z=z, **kwargs)
 
         return _f, u
 
@@ -269,16 +270,17 @@ class Numeric(object):
                 return x + c * m
 
         pts = [Point(0, x0)]
-        for i in np.arange(0, steps):
-            t1 = i * max_t / steps
+        step = max_t / float(steps)
+        for i in range(0, steps):
+            t1 = i * step
             x1 = pts[len(pts) - 1].y
             k1 = f(t1, x1)
-            k2 = f(t1 + 0.5 * max_t / steps, mat(x1, k1, max_t / steps / 2))
+            k2 = f(t1 + 0.5 * step, mat(x1, k1, step / 2))
             m2 = mat(k1, k2, 2)
-            k3 = f(t1 + 0.5 * max_t / steps, mat(x1, k2, max_t / steps / 2))
+            k3 = f(t1 + 0.5 * step, mat(x1, k2, step / 2))
             m3 = mat(m2, k3, 2)
-            k4 = f(t1 + max_t / steps, mat(x1, k3, max_t / steps))
+            k4 = f(t1 + step, mat(x1, k3, step))
             m4 = mat(m3, k4, 1)
-            pts = np.append(pts, [Point((i + 1) * max_t / steps, mat(x1, m4, max_t / 6 / steps))])
+            pts = np.append(pts, [Point((i + 1) * step, mat(x1, m4, step / 6))])
 
         return pts

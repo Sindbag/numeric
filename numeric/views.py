@@ -68,11 +68,12 @@ def manual(request):
 
             u_y = solver.integral(dens, 0, 0, steps)
 
-            y, u = solver.prepare(u_y, dens, s, z, function, B=B, T=T)
+            dy, u = solver.prepare(u_y, dens, s, z, function, B=B, T=T)
             dz = solver.derivative(z)
 
-            # y = lambda t, x: solver.integral(lambda _t: dy(_t, x), 0, y_st, steps)(t)
-            ptb_x = lambda t, x: dz(t) * (1 - u_y(y(t, x)))
+            y = lambda t, x: solver.integral(lambda _t: dy(_t, x), 0, y_st, steps)(t)
+
+            def ptb_x(t, x): return dz(t) * (1 - u_y(y(t, x)))
 
             pts = solver.solve_differential(ptb_x, x_st, T, steps)
 
