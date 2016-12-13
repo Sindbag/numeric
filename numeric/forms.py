@@ -20,8 +20,8 @@ class NumericForm(forms.Form):
                         help_text='Hyperparam B')
     x_start = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
                               help_text='x_0 = S(0)')
-    y_start = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
-                              help_text='y_0')
+    # y_start = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
+    #                           help_text='y_0')
     steps = forms.CharField(widget=forms.NumberInput(
         attrs={'placeholder': 'Steps for t',
                'class': 'form-control'}), help_text='Steps in range')
