@@ -83,12 +83,12 @@ def manual(request):
             u_y.tabs = solver.table(u_y, 0, 1, steps)
             context['tabs'] = tabs
 
-            fig = plt.figure()
-            u.tabs = solver.table(u, 0, 1, steps)
-            plt.title('u(x)')
-            plt.plot([p.x for p in u.tabs], [p.y for p in u.tabs])
-            fig.savefig(settings.STATIC_DIR + '_u.png')
-            context['pics'].append('/static/_u.png')
+            # fig = plt.figure()
+            # u.tabs = solver.table(u, 0, 1, steps)
+            # plt.title('u(x)')
+            # plt.plot([p.x for p in u.tabs], [p.y for p in u.tabs])
+            # fig.savefig(settings.STATIC_DIR + '_u.png')
+            # context['pics'].append('/static/_u.png')
 
             fig = plt.figure()
             plt.title('y(t)')
