@@ -9,7 +9,7 @@ class NumericForm(forms.Form):
         'class': 'form-control',
     }
     f = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
-                        help_text='f(t, x, z, S, B, u, p)')
+                        help_text='f(t, x, z, S, B, U, p, y, T)')
     density = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
                               help_text='p(w)')
     S = forms.CharField(widget=forms.Textarea(attrs=default_attrs),

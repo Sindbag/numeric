@@ -6,11 +6,15 @@ import matplotlib.pyplot as plt
 
 from django.conf import settings
 from django.shortcuts import render
+from django.views.decorators.cache import never_cache
+
 from numeric.forms import NumericForm
 from numeric.numeric import Numeric, Point, calc
 
 logger = logging.getLogger('Solver')
 solver = Numeric()
+
+clamp = lambda f, x, y: max(x, min(y, f))
 
 
 def tabulate(func, argname, max=1, steps=100):
@@ -41,6 +45,7 @@ def tabulate(func, argname, max=1, steps=100):
     return ff
 
 
+@never_cache
 def manual(request):
     context = {}
     form = NumericForm()
@@ -57,30 +62,39 @@ def manual(request):
             dens = tabulate(form.cleaned_data['density'], 'w', 1, steps)
             s = tabulate(form.cleaned_data['S'], 't', T, steps)
             z = tabulate(form.cleaned_data['z'], 't', T, steps)
-
-            # x_st = float(form.cleaned_data['x_start'])
             x_st = s(0)
             y_st = float(form.cleaned_data['y_start'])
 
             B = float(form.cleaned_data['B'])
 
             context['pics'] = []
+            prob = solver.freeze(solver.integral(dens, 0, 0, steps), 0, 1, steps)
 
-            u_y = solver.integral(dens, 0, 0, steps)
+            f = lambda t, x: calc(function,
+                                  x=x[0],
+                                  t=t,
+                                  y=x[1],
+                                  B=B, T=T, p=dens, U=lambda y: (1-prob(y)), S=s, z=z)
 
-            dy, u = solver.prepare(u_y, dens, s, z, function, B=B, T=T)
+            # dy, u = solver.prepare(prob, dens, s, z, function, B=B, T=T)
             dz = solver.derivative(z)
+            dz = solver.freeze(dz, 0, T, steps)
 
-            y = lambda t, x: solver.integral(lambda _t: dy(_t, x), 0, y_st, steps)(t)
+            def equation(t, x):
+                return [
+                    dz(t) * (1 - prob(x[1])),
+                    f(t, x)
+                ]
 
-            def ptb_x(t, x): return dz(t) * (1 - u_y(y(t, x)))
+            pts = solver.solve_differential(equation, [x_st, y_st], T, steps)
+            x_t = [Point(p.x, p.y[0]) for p in pts]
+            y_t = [Point(p.x, p.y[1]) for p in pts]
 
-            pts = solver.solve_differential(ptb_x, x_st, T, steps)
+            x = solver.interpolate(x_t)
+            y = solver.interpolate(y_t)
 
-            x = solver.interpolate(pts)
-
-            tabs = solver.table(lambda t: y(t, x(t)), 0, T, steps)
-            u_y.tabs = solver.table(u_y, 0, 1, steps)
+            tabs = solver.table(y, 0, T, steps)
+            prob.tabs = solver.table(prob, 0, 1, steps)
             context['tabs'] = tabs
 
             # fig = plt.figure()
@@ -126,8 +140,8 @@ def manual(request):
             context['pics'].append('/static/dens.png')
 
             fig = plt.figure()
-            plt.title('U(y)')
-            plt.plot([p.x for p in u_y.tabs], [p.y for p in u_y.tabs])
+            plt.title('P(y)')
+            plt.plot([p.x for p in prob.tabs], [p.y for p in prob.tabs])
             fig.savefig(settings.STATIC_DIR + 'prob.png')
             context['pics'].append('/static/prob.png')
 
@@ -160,7 +174,6 @@ def auto(request):
             y = solver.prepare(U, p, s, z, function)
             eq = lambda t, x: dz(t) * (1 - U(y(t, x)))
             x = solver.solve_differential(eq, 0)
-
 
             b_start = float(form.cleaned_data['b_start'])
             b_end = float(form.cleaned_data['b_end'])

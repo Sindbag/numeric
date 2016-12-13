@@ -1,11 +1,12 @@
 import math
 import numpy as np
+np.seterr('raise')
 
 
 def calc(f, *args, **kwargs):
     kwargs['math'] = math
-    kwargs['np'] = np
-    kwargs['clamp'] = lambda f, x, y: max(x, min(y, f))
+    # kwargs['np'] = np
+    kwargs['clamp'] = lambda q, x, y: max(x, min(y, q))
     kwargs['solver'] = Numeric()
     return eval(f, kwargs)
 
@@ -26,8 +27,8 @@ class Bounds(object):
         return self.y + self.h
 
     def union(self, r):
-        return Bounds.sides(np.min(self.x, r.x), np.max(self.xm, r.xm),
-                            np.min(self.y, r.y), np.max(self.ym, r.ym))
+        return Bounds.sides(min(self.x, r.x), max(self.xm, r.xm),
+                            min(self.y, r.y), max(self.ym, r.ym))
 
 
 Bounds.sides = lambda x, xm, y, ym: Bounds(x, y, xm - x, ym - y)
@@ -47,8 +48,8 @@ class Point(object):
         return '({:.2f}, {:.2f})'.format(self.x, self.y)
 
     def clip_to(self, b):
-        self.x = np.min(np.max(self.x, b.x if b.w > 0 else b.xm), b.xm if b.w > 0 else b.x)
-        self.y = np.min(np.max(self.y, b.y if b.h > 0 else b.ym), b.ym if b.h > 0 else b.y)
+        self.x = min(max(self.x, b.x if b.w > 0 else b.xm), b.xm if b.w > 0 else b.x)
+        self.y = min(max(self.y, b.y if b.h > 0 else b.ym), b.ym if b.h > 0 else b.y)
         return self
 
     def scale_to(self, b):
@@ -84,10 +85,10 @@ class Numeric(object):
         return lambda x: (f(x + step) - f(x - step)) / (2 * step)
 
     def table(self, f, a, b, n=100):
-        table = np.array([])
+        table = []
         for i in range(n + 1):
             x = a + (b - a) * (i / n)
-            table = np.append(table, [Point(x, f(x))])
+            table.append(Point(x, f(x)))
         return table
 
     def freeze(self, f, a, b, n=100):
@@ -275,12 +276,12 @@ class Numeric(object):
             t1 = i * step
             x1 = pts[len(pts) - 1].y
             k1 = f(t1, x1)
-            k2 = f(t1 + 0.5 * step, mat(x1, k1, step / 2))
+            k2 = f(t1 + step / 2, mat(x1, k1, step / 2))
             m2 = mat(k1, k2, 2)
-            k3 = f(t1 + 0.5 * step, mat(x1, k2, step / 2))
+            k3 = f(t1 + step / 2, mat(x1, k2, step / 2))
             m3 = mat(m2, k3, 2)
             k4 = f(t1 + step, mat(x1, k3, step))
             m4 = mat(m3, k4, 1)
-            pts = np.append(pts, [Point((i + 1) * step, mat(x1, m4, step / 6))])
+            pts.append(Point((i + 1) * step, mat(x1, m4, step / 6)))
 
         return pts
