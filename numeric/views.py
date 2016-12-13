@@ -26,7 +26,7 @@ def tabulate(func, argname, max=1, steps=100):
                 for x, y in t.values()]
         ff = solver.interpolate(tabs)
     except Exception as e:
-        logging.exception(e)
+        logging.warning(e)
         logging.info('Could not open as CSV file, try to parse as a text')
         try:
             tabs = [Point(float(x.strip()), float(y.strip()))
@@ -34,10 +34,10 @@ def tabulate(func, argname, max=1, steps=100):
                     for x, y in line.split(',')]
             ff = solver.interpolate(tabs)
         except Exception as e:
-            logging.exception(e)
+            logging.warning(e)
             logging.info('Could not parse as text, try to parse as a function')
             f = lambda x: calc(func, **{argname: x})
-            ff = solver.freeze(f, 0, max, 100)
+            ff = solver.freeze(f, 0, max, steps)
     return ff
 
 
@@ -52,46 +52,43 @@ def manual(request):
 
             function = form.cleaned_data['f']
 
+            steps = int(form.cleaned_data['steps'])
             T = int(form.cleaned_data['T'])
-            p = tabulate(form.cleaned_data['density'], 'w', 1)
-            s = tabulate(form.cleaned_data['S'], 't', T)
-            z = tabulate(form.cleaned_data['z'], 't', T)
+            dens = tabulate(form.cleaned_data['density'], 'w', 1, steps)
+            s = tabulate(form.cleaned_data['S'], 't', T, steps)
+            z = tabulate(form.cleaned_data['z'], 't', T, steps)
 
-            x_st = float(form.cleaned_data['x_start'])
+            # x_st = float(form.cleaned_data['x_start'])
+            x_st = s(0)
             y_st = float(form.cleaned_data['y_start'])
 
             B = float(form.cleaned_data['B'])
-            steps = int(form.cleaned_data['steps'])
 
-            f_b = lambda b: lambda x: calc(
-                function,
-                t=x,
-                x=lambda t: t ** 2,
-                S=s,
-                z=z,
-                B=b,
-            )
-            f = f_b(B)
-
-            # tabs = solver.table(f, 0, T, n=steps)
             context['pics'] = []
 
-            u_y = solver.integral(p, 0, 0)
+            u_y = solver.integral(dens, 0, 0, steps)
 
-            y = solver.prepare(u_y, p, s, z, function, B=B, T=T)
+            dy, u = solver.prepare(u_y, dens, s, z, function, B=B, T=T)
             dz = solver.derivative(z)
 
-            ptb_x = lambda t, t2: dz(t) * (1 - u_y( y(t, t2) ))
+            y = lambda t, x: solver.integral(lambda _t: dy(_t, x), 0, y_st, steps)(t)
+
+            def ptb_x(t, x): return dz(t) * (1 - u_y(y(t, x)))
 
             pts = solver.solve_differential(ptb_x, x_st, T, steps)
 
             x = solver.interpolate(pts)
 
-            _y = lambda t: y(t, x(t))
-
-            tabs = solver.table(_y, 0, T, steps)
+            tabs = solver.table(lambda t: y(t, x(t)), 0, T, steps)
             u_y.tabs = solver.table(u_y, 0, 1, steps)
             context['tabs'] = tabs
+
+            fig = plt.figure()
+            u.tabs = solver.table(u, 0, 1, steps)
+            plt.title('u(x)')
+            plt.plot([p.x for p in u.tabs], [p.y for p in u.tabs])
+            fig.savefig(settings.STATIC_DIR + '_u.png')
+            context['pics'].append('/static/_u.png')
 
             fig = plt.figure()
             plt.title('y(t)')
@@ -104,7 +101,7 @@ def manual(request):
             fig = plt.figure()
             plt.title('x(t)')
             plt.plot([p.x for p in x.tabs], [p.y for p in x.tabs])
-            plt.plot([p.x for p in s.tabs], [p.y for p in s.tabs], alpha=0.6, color='grey')
+            plt.plot([p.x for p in s.tabs], [p.y for p in s.tabs], alpha=0.75, color='red')
             fig.savefig(settings.STATIC_DIR + 'x.png')
             context['pics'].append('/static/x.png')
 
@@ -123,7 +120,7 @@ def manual(request):
 
             fig = plt.figure()
             plt.title('p(w)')
-            p_tabs = solver.table(p, 0, 1, steps)
+            p_tabs = solver.table(dens, 0, 1, steps)
             plt.plot([l.x for l in p_tabs], [l.y for l in p_tabs])
             fig.savefig(settings.STATIC_DIR + 'dens.png')
             context['pics'].append('/static/dens.png')

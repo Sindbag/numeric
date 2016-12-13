@@ -6,6 +6,7 @@ def calc(f, *args, **kwargs):
     kwargs['math'] = math
     kwargs['np'] = np
     kwargs['clamp'] = lambda f, x, y: max(x, min(y, f))
+    kwargs['solver'] = Numeric()
     return eval(f, kwargs)
 
 
@@ -64,7 +65,7 @@ class Numeric(object):
         'simpson': lambda f, x, d: (f(x) + 4 * f(x + d / 2) + f(x + d)) * d / 6,
     }
 
-    def __init__(self, mode='rectangle'):
+    def __init__(self, mode='simpson'):
         self.mode = mode
 
     def integral(self, f, x0, f0, steps=100):
@@ -72,8 +73,8 @@ class Numeric(object):
 
         def _int(x):
             s = f0
-            d = np.abs(x - x0) / steps
-            for i in range(steps):
+            d = abs(x - x0) / steps
+            for i in range(0, steps):
                 s = s + p(f, x0 + d * i, d)
             return s
 
@@ -83,11 +84,10 @@ class Numeric(object):
         return lambda x: (f(x + step) - f(x - step)) / (2 * step)
 
     def table(self, f, a, b, n=100):
-        table = []
+        table = np.array([])
         for i in range(n + 1):
             x = a + (b - a) * (i / n)
-            table.append(Point(x, f(x)))
-        # setattr(table, 'points', getattr(f, 'points', None))
+            table = np.append(table, [Point(x, f(x))])
         return table
 
     def freeze(self, f, a, b, n=100):
@@ -230,14 +230,6 @@ class Numeric(object):
                 y[i + 1] += d
 
             u = self.tridiag(a, b, c, y)
-            A = [b(i) if i == j else
-                 c(i) if i == (j - 1) else
-                 a(i) if i == (j + 1) else
-                 0
-                 for i, _
-                 in enumerate(pts)
-                 for j, _
-                 in enumerate(pts)]
 
             def f(x):
                 L = bisect(x)
@@ -253,22 +245,23 @@ class Numeric(object):
 
     def solve(self, f, df, steps=100):
         def solutioner(x, y, n=steps):
-            for i in range(n):
-                x = x - (f(x) - y) / df(x)
-            return x
+            q = x
+            for _ in np.arange(0, n):
+                q -= (f(q) - y) / df(q)
+            return q
 
         return solutioner
 
-    def prepare(self, f, df, s, z, F, **kwargs):
+    def prepare(self, f, df, s, z, function, **kwargs):
         U = self.solve(f, df)
-        u = lambda x: U(0.5, x)
+        u = self.freeze(lambda x: U(0.5, x), 0, 1)
 
         def _f(t, t2):
-            return calc(F, t=t, x=t2, u=u, p=df, S=s, z=z, **kwargs)
+            return calc(function, t=t, x=t2, u=u, U=f, p=df, S=s, z=z, **kwargs)
 
-        return _f
+        return _f, u
 
-    def solve_differential(self, f, x0, T, steps=100):
+    def solve_differential(self, f, x0, max_t, steps=100):
         if isinstance(x0, list):
             def mat(x, c, m):
                 return [e + c[i] * m for i, e in enumerate(x)]
@@ -277,16 +270,17 @@ class Numeric(object):
                 return x + c * m
 
         pts = [Point(0, x0)]
-        for i in range(steps):
-            t1 = i * T / steps
+        step = max_t / float(steps)
+        for i in range(0, steps):
+            t1 = i * step
             x1 = pts[len(pts) - 1].y
             k1 = f(t1, x1)
-            k2 = f(t1 + 0.5 * T / steps, mat(x1, k1, T / steps / 2))
+            k2 = f(t1 + 0.5 * step, mat(x1, k1, step / 2))
             m2 = mat(k1, k2, 2)
-            k3 = f(t1 + 0.5 * T / steps, mat(x1, k2, T / steps / 2))
+            k3 = f(t1 + 0.5 * step, mat(x1, k2, step / 2))
             m3 = mat(m2, k3, 2)
-            k4 = f(t1 + T / steps, mat(x1, k3, T / steps))
+            k4 = f(t1 + step, mat(x1, k3, step))
             m4 = mat(m3, k4, 1)
-            pts.append(Point((i + 1) * T / steps, mat(x1, m4, T / 6 / steps)))
+            pts = np.append(pts, [Point((i + 1) * step, mat(x1, m4, step / 6))])
 
         return pts

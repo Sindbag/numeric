@@ -9,7 +9,7 @@ class NumericForm(forms.Form):
         'class': 'form-control',
     }
     f = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
-                        help_text='y(t, x, z, S, B, u, p)')
+                        help_text='f(t, x, z, S, B, u, p)')
     density = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
                               help_text='p(w)')
     S = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
@@ -18,8 +18,8 @@ class NumericForm(forms.Form):
                         help_text='z(t)')
     B = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
                         help_text='Hyperparam B')
-    x_start = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
-                              help_text='x_0 = S(0)')
+    # x_start = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
+    #                           help_text='x_0 = S(0)')
     y_start = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
                               help_text='y_0')
     steps = forms.CharField(widget=forms.NumberInput(
