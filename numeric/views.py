@@ -45,6 +45,14 @@ def tabulate(func, argname, max=1, steps=100):
     return ff
 
 
+def draw_pic(name, tabs, filename):
+    fig = plt.figure()
+    plt.title(name)
+    plt.plot([p.x for p in tabs], [p.y for p in tabs])
+    fig.savefig(settings.STATIC_DIR + '%s.png' % filename)
+    return '/static/%s.png' % filename
+
+
 @never_cache
 def manual(request):
     context = {}
@@ -70,13 +78,12 @@ def manual(request):
             context['pics'] = []
             prob = solver.freeze(solver.integral(dens, 0, 0, steps), 0, 1, steps)
 
-            f = lambda t, x: calc(function,
-                                  x=x[0],
-                                  t=t,
-                                  y=x[1],
-                                  B=B, T=T, p=dens, U=lambda y: (1-prob(y)), S=s, z=z)
+            def f(t, x, **kwargs):
+                return calc(function, x=x[0], t=t, y=x[1],
+                            B=B, T=T, p=dens,
+                            U=lambda y: (1-prob(y)),
+                            S=s, z=z, **kwargs)
 
-            # dy, u = solver.prepare(prob, dens, s, z, function, B=B, T=T)
             dz = solver.derivative(z)
             dz = solver.freeze(dz, 0, T, steps)
 
@@ -93,16 +100,21 @@ def manual(request):
             x = solver.interpolate(x_t)
             y = solver.interpolate(y_t)
 
+            dx = solver.derivative(x)
+            wp = lambda w: w * dens(w)
+            i_wp = solver.integral(wp, 0, 0, steps)
+            _f = lambda t: dx(t) * (i_wp(1) - i_wp(y(t)))
+            i_f = solver.integral(_f, 0, _f(0))
+            C1 = lambda B: 1 - (i_f(T) - i_f(0)) / (x(T) - x_st)
+            C2 = lambda B: abs(x(T) - s(T)) / s(T)
+
+            context['c1'] = C1(B)
+            context['c2'] = C2(B)
+            context['minim'] = C1(B) + 10 * C2(B)
+
             tabs = solver.table(y, 0, T, steps)
             prob.tabs = solver.table(prob, 0, 1, steps)
             context['tabs'] = tabs
-
-            # fig = plt.figure()
-            # u.tabs = solver.table(u, 0, 1, steps)
-            # plt.title('u(x)')
-            # plt.plot([p.x for p in u.tabs], [p.y for p in u.tabs])
-            # fig.savefig(settings.STATIC_DIR + '_u.png')
-            # context['pics'].append('/static/_u.png')
 
             fig = plt.figure()
             plt.title('y(t)')
