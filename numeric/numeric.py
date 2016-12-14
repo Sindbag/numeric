@@ -227,7 +227,7 @@ class Numeric(object):
             y = [0] * len(pts)
             for i in range(n - 1):
                 d = 3 * (pts[i + 1].y - pts[i].y) / math.pow(pts[i + 1].x - pts[i].x, 2)
-                y[i + 0] += d
+                y[i] += d
                 y[i + 1] += d
 
             u = self.tridiag(a, b, c, y)

@@ -34,7 +34,7 @@ def tabulate(func, argname, max=1, steps=100):
         logging.info('Could not open as CSV file, try to parse as a text')
         try:
             tabs = [Point(float(x.strip()), float(y.strip()))
-                    for line in func.split('\n')
+                    for line in str(func).split('\n')
                     for x, y in line.split(',')]
             ff = solver.interpolate(tabs)
         except Exception as e:
@@ -74,6 +74,8 @@ def manual(request):
             y_st = float(form.cleaned_data['y_start'])
 
             B = float(form.cleaned_data['B'])
+            if not (0 <= B <= 1):
+                raise Exception('Hyperparam B must be in range [0; 1]')
 
             context['pics'] = []
             prob = solver.freeze(solver.integral(dens, 0, 0, steps), 0, 1, steps)
@@ -97,8 +99,8 @@ def manual(request):
             x_t = [Point(p.x, p.y[0]) for p in pts]
             y_t = [Point(p.x, p.y[1]) for p in pts]
 
-            x = solver.interpolate(x_t)
-            y = solver.interpolate(y_t)
+            x = solver.freeze(solver.interpolate(x_t), 0, T, steps)
+            y = solver.freeze(solver.interpolate(y_t), 0, T, steps)
 
             dx = solver.derivative(x)
             wp = lambda w: w * dens(w)
@@ -114,16 +116,15 @@ def manual(request):
 
             tabs = solver.table(y, 0, T, steps)
             prob.tabs = solver.table(prob, 0, 1, steps)
-            context['tabs'] = tabs
-
-            fig = plt.figure()
-            plt.title('y(t)')
-            plt.plot([p.x for p in tabs], [p.y for p in tabs])
-            fig.savefig(settings.STATIC_DIR + 'somefig.png')
-            context['pics'].append('/static/somefig.png')
-
             x.tabs = solver.table(x, 0, T, steps)
             s.tabs = solver.table(s, 0, T, steps)
+            z_tabs = solver.table(z, 0, T, steps)
+            p_tabs = solver.table(dens, 0, 1, steps)
+
+            context['tabs'] = tabs
+
+            context['pics'].append(draw_pic('y(t)', tabs, 'y_t'))
+
             fig = plt.figure()
             plt.title('x(t)')
             plt.plot([p.x for p in x.tabs], [p.y for p in x.tabs])
@@ -131,31 +132,9 @@ def manual(request):
             fig.savefig(settings.STATIC_DIR + 'x.png')
             context['pics'].append('/static/x.png')
 
-            # fig = plt.figure()
-            # plt.title('S(t)')
-            # plt.plot([p.x for p in s_tabs], [p.y for p in s_tabs])
-            # fig.savefig(settings.STATIC_DIR + 's.png')
-            # context['pics'].append('/static/s.png')
-
-            fig = plt.figure()
-            plt.title('z(t)')
-            z_tabs = solver.table(z, 0, T, steps)
-            plt.plot([p.x for p in z_tabs], [p.y for p in z_tabs])
-            fig.savefig(settings.STATIC_DIR + 'z.png')
-            context['pics'].append('/static/z.png')
-
-            fig = plt.figure()
-            plt.title('p(w)')
-            p_tabs = solver.table(dens, 0, 1, steps)
-            plt.plot([l.x for l in p_tabs], [l.y for l in p_tabs])
-            fig.savefig(settings.STATIC_DIR + 'dens.png')
-            context['pics'].append('/static/dens.png')
-
-            fig = plt.figure()
-            plt.title('P(y)')
-            plt.plot([p.x for p in prob.tabs], [p.y for p in prob.tabs])
-            fig.savefig(settings.STATIC_DIR + 'prob.png')
-            context['pics'].append('/static/prob.png')
+            context['pics'].append(draw_pic('z(t)', z_tabs, 'z_t'))
+            context['pics'].append(draw_pic('p(w)', p_tabs, 'p_w'))
+            context['pics'].append(draw_pic('P(y)', prob.tabs, 'prob_y'))
 
         except BaseException as e:
             logging.exception(e)
@@ -175,71 +154,91 @@ def auto(request):
                 raise Exception('Form is not valid')
 
             function = form.cleaned_data['f']
-
-            T = int(form.cleaned_data['T'])
-            p = tabulate(form.cleaned_data['density'], 'w', 1)
-            s = tabulate(form.cleaned_data['S'], 't', T)
-            z = tabulate(form.cleaned_data['z'], 't', T)
-
-            dz = solver.derivative(z)
-            U = solver.integral(p, 0, 0, 100)
-            y = solver.prepare(U, p, s, z, function)
-            eq = lambda t, x: dz(t) * (1 - U(y(t, x)))
-            x = solver.solve_differential(eq, 0)
-
-            b_start = float(form.cleaned_data['b_start'])
-            b_end = float(form.cleaned_data['b_end'])
             steps = int(form.cleaned_data['steps'])
+            T = int(form.cleaned_data['T'])
+            dens = tabulate(form.cleaned_data['density'], 'w', 1, steps)
+            s = tabulate(form.cleaned_data['S'], 't', T, steps)
+            z = tabulate(form.cleaned_data['z'], 't', T, steps)
+            x_st = s(0)
+            y_st = float(form.cleaned_data['y_start'])
 
-            f_b = lambda b: lambda x: calc(
-                function,
-                t=x,
-                x=lambda t: t ** 2,
-                S=s,
-                z=z,
-                B=b,
-            )
-
-            for b in range(b_start, b_end, 1):
-                f = f_b(b)
-                tabs = solver.table(f, 0, T, n=steps)
-                context['tabs'] = tabs
+            b_st = float(form.cleaned_data['b_start'])
+            b_end = float(form.cleaned_data['b_end'])
+            if not (0 <= b_st <= 1) or not (0 <= b_end <= 1):
+                raise Exception('Hyperparam B must be in range [0; 1]')
 
             context['pics'] = []
+            prob = solver.freeze(solver.integral(dens, 0, 0, steps), 0, 1, steps)
 
-            fig = plt.figure()
-            plt.title('f')
-            plt.plot([p.x for p in tabs], [p.y for p in tabs])
-            fig.savefig(settings.STATIC_DIR + 'somefig.png')
-            context['pics'].append('/static/somefig.png')
+            def f(t, x, B=b_st, **kwargs):
+                return calc(function, x=x[0], t=t, y=x[1],
+                            B=B, T=T, p=dens,
+                            U=lambda y: (1-prob(y)),
+                            S=s, z=z, **kwargs)
 
-            fig = plt.figure()
-            plt.title('S(t)')
-            s_tabs = solver.table(s, 0, T, steps)
-            plt.plot([p.x for p in s_tabs], [p.y for p in s_tabs])
-            fig.savefig(settings.STATIC_DIR + 's.png')
-            context['pics'].append('/static/s.png')
+            dz = solver.derivative(z)
+            dz = solver.freeze(dz, 0, T, steps)
 
-            fig = plt.figure()
-            plt.title('z(t)')
+            glob_minimal = 1E9
+            B = -1
+            X = None
+            Y = None
+            C1 = None
+            C2 = None
+            for b in np.arange(b_st, b_end, 0.01):
+                def equation(t, x):
+                    return [
+                        dz(t) * (1 - prob(x[1])),
+                        f(t, x, b)
+                    ]
+                pts = solver.solve_differential(equation, [x_st, y_st], T, steps)
+                x_t = [Point(p.x, p.y[0]) for p in pts]
+                y_t = [Point(p.x, p.y[1]) for p in pts]
+                x = solver.freeze(solver.interpolate(x_t), 0, T, steps)
+                y = solver.freeze(solver.interpolate(y_t), 0, T, steps)
+
+                dx = solver.derivative(x)
+                wp = lambda w: w * dens(w)
+                i_wp = solver.integral(wp, 0, 0, steps)
+                _f = lambda t: dx(t) * (i_wp(1) - i_wp(y(t)))
+                i_f = solver.integral(_f, 0, _f(0))
+                c1 = lambda B: 1 - (i_f(T) - i_f(0)) / (x(T) - x_st)
+                c2 = lambda B: abs(x(T) - s(T)) / s(T)
+                minim = c1(b) + 10 * c2(b)
+
+                if minim < glob_minimal:
+                    glob_minimal = minim
+                    B = b
+                    C1 = c1
+                    C2 = c2
+                    X = x
+                    Y = y
+
+            context['c1'] = C1(B)
+            context['c2'] = C2(B)
+            context['minim'] = C1(B) + 10 * C2(B)
+
+            tabs = solver.table(Y, 0, T, steps)
+            prob.tabs = solver.table(prob, 0, 1, steps)
+            X.tabs = solver.table(X, 0, T, steps)
+            s.tabs = solver.table(s, 0, T, steps)
             z_tabs = solver.table(z, 0, T, steps)
-            plt.plot([p.x for p in z_tabs], [p.y for p in z_tabs])
-            fig.savefig(settings.STATIC_DIR + 'z.png')
-            context['pics'].append('/static/z.png')
+            p_tabs = solver.table(dens, 0, 1, steps)
+
+            context['tabs'] = tabs
+
+            context['pics'].append(draw_pic('y(t)', tabs, 'y_t'))
 
             fig = plt.figure()
-            plt.title('p(w)')
-            p_tabs = solver.table(p, 0, T, steps)
-            plt.plot([l.x for l in p_tabs], [l.y for l in p_tabs])
-            fig.savefig(settings.STATIC_DIR + 'dens.png')
-            context['pics'].append('/static/dens.png')
+            plt.title('x(t)')
+            plt.plot([p.x for p in X.tabs], [p.y for p in X.tabs])
+            plt.plot([p.x for p in s.tabs], [p.y for p in s.tabs], alpha=0.75, color='red')
+            fig.savefig(settings.STATIC_DIR + 'x.png')
+            context['pics'].append('/static/x.png')
 
-            fig = plt.figure()
-            plt.title('P')
-            q = solver.table(solver.integral(p, 0, 0, 100), 0, 1, 100)
-            plt.plot([p.x for p in q], [p.y for p in q])
-            fig.savefig(settings.STATIC_DIR + 'prob.png')
-            context['pics'].append('/static/prob.png')
+            context['pics'].append(draw_pic('z(t)', z_tabs, 'z_t'))
+            context['pics'].append(draw_pic('p(w)', p_tabs, 'p_w'))
+            context['pics'].append(draw_pic('P(y)', prob.tabs, 'prob_y'))
 
         except BaseException as e:
             logging.exception(e)
