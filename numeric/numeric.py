@@ -1,11 +1,10 @@
 import math
 import numpy as np
-np.seterr('raise')
 
 
 def calc(f, *args, **kwargs):
     kwargs['math'] = math
-    # kwargs['np'] = np
+    kwargs['np'] = np
     kwargs['clamp'] = lambda q, x, y: max(x, min(y, q))
     kwargs['solver'] = Numeric()
     return eval(f, kwargs)
@@ -184,6 +183,9 @@ class Numeric(object):
 
         c_ = [0] * n
         y_ = [0] * n
+        if not b(0):
+            raise ZeroDivisionError('Zero division!')
+
         c_[0] = c(0) / b(0)
         y_[0] = y[0] / b(0)
         for i in range(1, n):
@@ -222,11 +224,12 @@ class Numeric(object):
         y = [0] * len(pts)
 
         for i in range(n - 1):
-            d = 3 * (pts[i + 1].y - pts[i].y) / math.pow(pts[i + 1].x - pts[i].x, 2)
+            d = 3 * (pts[i + 1].y - pts[i].y) / np.power(pts[i + 1].x - pts[i].x, 2)
             y[i] += d
             y[i + 1] += d
 
         u = self.tridiag(a, b, c, y)
+        print(u)
 
         def f(x):
             L = bisect(x)
@@ -235,7 +238,9 @@ class Numeric(object):
             t = (x - pts[L - 1].x) / dx
             a = u[L - 1] * dx - dy
             b = dy - u[L] * dx
-            return (1 - t) * pts[L - 1].y + t * pts[L].y + t * (1 - t) * (a * (1 - t) + b * t)
+            return (1 - t) * pts[L - 1].y + \
+                   t * pts[L].y + \
+                   t * (1 - t) * (a * (1 - t) + b * t)
 
         f.points = pts
         return f
@@ -243,7 +248,7 @@ class Numeric(object):
     def solve(self, f, df, steps=100):
         def solutioner(x, y, n=steps):
             q = x
-            for _ in np.arange(0, n):
+            for _ in range(n):
                 q -= (f(q) - y) / df(q)
             return q
 
@@ -279,6 +284,6 @@ class Numeric(object):
             k4 = f(t1 + step, mat(x1, k3, step))
             m4 = mat(m3, k4, 1)
             x, y = mat(x1, m4, step/6)
-            pts.append(Point((i + 1) * step, [x, np.clip(y, 0, 1)]))
+            pts.append(Point((i + 1) * step, [x, max(0, min(y, 1))]))
 
         return pts

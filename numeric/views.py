@@ -1,6 +1,5 @@
 import json
 import logging
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -33,9 +32,8 @@ def tabulate(func, argname, max=1, steps=100):
         logging.warning(e)
         logging.info('Could not open as CSV file, try to parse as a text')
         try:
-            tabs = [Point(float(x.strip()), float(y.strip()))
-                    for line in str(func).split('\n')
-                    for x, y in line.split(',')]
+            tabs = [Point(*map(float, line.split(',')))
+                    for line in func.split('\n')]
             ff = solver.interpolate(tabs)
         except Exception as e:
             logging.warning(e)
@@ -128,7 +126,8 @@ def manual(request):
             fig = plt.figure()
             plt.title('x(t)')
             plt.plot([p.x for p in x.tabs], [p.y for p in x.tabs])
-            plt.plot([p.x for p in s.tabs], [p.y for p in s.tabs], alpha=0.75, color='red')
+            plt.plot([p.x for p in s.tabs], [p.y for p in s.tabs],
+                     alpha=0.75, color='red')
             fig.savefig(settings.STATIC_DIR + 'x.png')
             context['pics'].append('/static/x.png')
 
@@ -162,11 +161,12 @@ def auto(request):
             x_st = s(0)
             y_st = float(form.cleaned_data['y_start'])
 
-            b_st = np.float64(form.cleaned_data['b_start'])
-            b_end = np.float64(form.cleaned_data['b_end'])
-            b_step = np.float64(form.cleaned_data['b_step'])
-            if not (0 <= b_st <= 1) or not (0 <= b_end <= 1):
-                raise Exception('Hyperparam B must be in range [0; 1]')
+            b_st = float(form.cleaned_data['b_start'])
+            b_end = float(form.cleaned_data['b_end'])
+            b_steps = int(form.cleaned_data['b_step'])
+            if not (0 <= b_st <= 1) or not (0 <= b_end <= 1) or b_end < b_st:
+                raise Exception('Hyperparam B must be in range [0; 1]. '
+                                'B end range must be bigger than B start.')
 
             context['pics'] = []
             prob = solver.freeze(solver.integral(dens, 0, 0, steps), 0, 1, steps)
@@ -180,18 +180,22 @@ def auto(request):
             dz = solver.derivative(z)
             dz = solver.freeze(dz, 0, T, steps)
 
-            glob_minimal = 1E9
+            glob_minimal = 1E20
             B = -1
             X = None
             Y = None
             C1 = None
             C2 = None
-            for b in np.arange(b_st, b_end, b_step):
+            for _b in range(b_steps):
+                b = b_st + (b_end - b_st) *_b / b_steps
+                print(b)
+
                 def equation(t, x):
                     return [
                         dz(t) * (1 - prob(x[1])),
                         f(t, x, b)
                     ]
+
                 pts = solver.solve_differential(equation, [x_st, y_st], T, steps)
                 x_t = [Point(p.x, p.y[0]) for p in pts]
                 y_t = [Point(p.x, p.y[1]) for p in pts]
@@ -206,6 +210,7 @@ def auto(request):
                 c1 = lambda B: 1 - (i_f(T) - i_f(0)) / (x(T) - x_st)
                 c2 = lambda B: abs(x(T) - s(T)) / s(T)
                 minim = c1(b) + 10 * c2(b)
+                print(minim)
 
                 if minim < glob_minimal:
                     glob_minimal = minim

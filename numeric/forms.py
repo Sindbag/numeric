@@ -53,8 +53,8 @@ class NumericFormMulti(forms.Form):
         attrs={'placeholder': 'Hyperparam B end',
                'class': 'form-control'}), help_text='B end')
     b_step = forms.CharField(widget=forms.TextInput(
-        attrs={'placeholder': 'Step size for B search',
-               'class': 'form-control'}), help_text='Step for B')
+        attrs={'placeholder': 'Steps for B search',
+               'class': 'form-control'}), help_text='Steps for B')
     # x_start = forms.CharField(widget=forms.Textarea(attrs=default_attrs),
     #                           help_text='x_0 = S(0)')
     y_start = forms.CharField(widget=forms.TextInput(
