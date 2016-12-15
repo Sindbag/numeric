@@ -8,7 +8,7 @@ from django.conf import settings
 from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 
-from numeric.forms import NumericForm
+from numeric.forms import NumericForm, NumericFormMulti
 from numeric.numeric import Numeric, Point, calc
 
 logger = logging.getLogger('Solver')
@@ -146,10 +146,10 @@ def manual(request):
 
 def auto(request):
     context = {}
-    form = NumericForm()
+    form = NumericFormMulti()
     if request.method == 'POST':
         try:
-            form = NumericForm(request.POST)
+            form = NumericFormMulti(request.POST)
             if not form.is_valid():
                 raise Exception('Form is not valid')
 
@@ -162,8 +162,9 @@ def auto(request):
             x_st = s(0)
             y_st = float(form.cleaned_data['y_start'])
 
-            b_st = float(form.cleaned_data['b_start'])
-            b_end = float(form.cleaned_data['b_end'])
+            b_st = np.float64(form.cleaned_data['b_start'])
+            b_end = np.float64(form.cleaned_data['b_end'])
+            b_step = np.float64(form.cleaned_data['b_step'])
             if not (0 <= b_st <= 1) or not (0 <= b_end <= 1):
                 raise Exception('Hyperparam B must be in range [0; 1]')
 
@@ -185,7 +186,7 @@ def auto(request):
             Y = None
             C1 = None
             C2 = None
-            for b in np.arange(b_st, b_end, 0.01):
+            for b in np.arange(b_st, b_end, b_step):
                 def equation(t, x):
                     return [
                         dz(t) * (1 - prob(x[1])),
@@ -199,9 +200,9 @@ def auto(request):
 
                 dx = solver.derivative(x)
                 wp = lambda w: w * dens(w)
-                i_wp = solver.integral(wp, 0, 0, steps)
+                i_wp = solver.freeze(solver.integral(wp, 0, 0, steps), 0, T, steps)
                 _f = lambda t: dx(t) * (i_wp(1) - i_wp(y(t)))
-                i_f = solver.integral(_f, 0, _f(0))
+                i_f = solver.integral(_f, 0, 0)
                 c1 = lambda B: 1 - (i_f(T) - i_f(0)) / (x(T) - x_st)
                 c2 = lambda B: abs(x(T) - s(T)) / s(T)
                 minim = c1(b) + 10 * c2(b)
@@ -214,6 +215,7 @@ def auto(request):
                     X = x
                     Y = y
 
+            context['b'] = B
             context['c1'] = C1(B)
             context['c2'] = C2(B)
             context['minim'] = C1(B) + 10 * C2(B)
@@ -245,4 +247,4 @@ def auto(request):
             context['error'] = 'Error occurred: %s' % e
     context['form'] = form
 
-    return render(request, 'manual.html', context)
+    return render(request, 'automatic.html', context)

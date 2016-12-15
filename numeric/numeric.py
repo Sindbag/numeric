@@ -214,32 +214,28 @@ class Numeric(object):
                 L -= 1
             return L
 
+        n = len(pts)
+        a = lambda i: 1 / (pts[i + 0].x - pts[i - 1].x)
+        b = lambda i: (2 / (pts[i + 1].x - pts[i].x) if i < n - 1 else 0) + \
+                      (2 / (pts[i].x - pts[i - 1].x) if i > 0 else 0)
+        c = lambda i: 1 / (pts[i + 1].x - pts[i].x)
+        y = [0] * len(pts)
+
+        for i in range(n - 1):
+            d = 3 * (pts[i + 1].y - pts[i].y) / math.pow(pts[i + 1].x - pts[i].x, 2)
+            y[i] += d
+            y[i + 1] += d
+
+        u = self.tridiag(a, b, c, y)
+
         def f(x):
             L = bisect(x)
-            return (pts[L].y * (x - pts[L - 1].x) + pts[L - 1].y * (pts[L].x - x)) / (pts[L].x - pts[L - 1].x)
-
-        if 2 < len(pts):
-            n = len(pts)
-            a = lambda i: 1 / (pts[i + 0].x - pts[i - 1].x)
-            b = lambda i: (2 / (pts[i + 1].x - pts[i].x) if i < n - 1 else 0) + \
-                          (2 / (pts[i].x - pts[i - 1].x) if i > 0 else 0)
-            c = lambda i: 1 / (pts[i + 1].x - pts[i].x)
-            y = [0] * len(pts)
-            for i in range(n - 1):
-                d = 3 * (pts[i + 1].y - pts[i].y) / math.pow(pts[i + 1].x - pts[i].x, 2)
-                y[i] += d
-                y[i + 1] += d
-
-            u = self.tridiag(a, b, c, y)
-
-            def f(x):
-                L = bisect(x)
-                dx = pts[L].x - pts[L - 1].x
-                dy = pts[L].y - pts[L - 1].y
-                t = (x - pts[L - 1].x) / dx
-                a = u[L - 1] * dx - dy
-                b = dy - u[L] * dx
-                return (1 - t) * pts[L - 1].y + t * pts[L].y + t * (1 - t) * (a * (1 - t) + b * t)
+            dx = pts[L].x - pts[L - 1].x
+            dy = pts[L].y - pts[L - 1].y
+            t = (x - pts[L - 1].x) / dx
+            a = u[L - 1] * dx - dy
+            b = dy - u[L] * dx
+            return (1 - t) * pts[L - 1].y + t * pts[L].y + t * (1 - t) * (a * (1 - t) + b * t)
 
         f.points = pts
         return f
@@ -282,6 +278,7 @@ class Numeric(object):
             m3 = mat(m2, k3, 2)
             k4 = f(t1 + step, mat(x1, k3, step))
             m4 = mat(m3, k4, 1)
-            pts.append(Point((i + 1) * step, mat(x1, m4, step / 6)))
+            x, y = mat(x1, m4, step/6)
+            pts.append(Point((i + 1) * step, [x, np.clip(y, 0, 1)]))
 
         return pts
