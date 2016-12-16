@@ -1,5 +1,7 @@
+import logging
 import math
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def calc(f, *args, **kwargs):
@@ -229,7 +231,7 @@ class Numeric(object):
             y[i + 1] += d
 
         u = self.tridiag(a, b, c, y)
-        print(u)
+        logging.info(u)
 
         def f(x):
             L = bisect(x)
@@ -263,7 +265,8 @@ class Numeric(object):
 
         return _f, u
 
-    def solve_differential(self, f, x0, max_t, steps=100):
+    def solve_differential(self, f, x0, max_t, steps=100,
+                           filter=lambda y: max(0, min(y, 1))):
         if isinstance(x0, list):
             def mat(x, c, m):
                 return [e + c[i] * m for i, e in enumerate(x)]
@@ -284,6 +287,29 @@ class Numeric(object):
             k4 = f(t1 + step, mat(x1, k3, step))
             m4 = mat(m3, k4, 1)
             x, y = mat(x1, m4, step/6)
-            pts.append(Point((i + 1) * step, [x, max(0, min(y, 1))]))
+            pts.append(Point((i + 1) * step, [x, filter(y)]))
 
         return pts
+
+
+def draw_phase(f, t0, y1min, y1max, y2min, y2max, output, steps=20):
+    y1 = np.linspace(y1min, y1max, steps)
+    y2 = np.linspace(y2min, y2max, steps)
+    Y1, Y2 = np.meshgrid(y1, y2)
+    __t = t0
+    u, v = np.zeros(Y1.shape), np.zeros(Y2.shape)
+    NI, NJ = Y1.shape
+    for i in range(NI):
+        for j in range(NJ):
+            __x = Y1[i, j]
+            __y = Y2[i, j]
+            yprime = f(__t, [__x, __y])
+            u[i, j] = yprime[0]
+            v[i, j] = yprime[1]
+    Q = plt.quiver(Y1, Y2, u, v, color='r')
+    plt.title('Phase portrait at t = %f' % __t)
+    plt.xlabel('$x$')
+    plt.ylabel('$y$')
+    plt.xlim([y1min, y1max])
+    plt.ylim([y2min, y2max])
+    plt.savefig(output)

@@ -1,6 +1,7 @@
 import json
 import logging
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 
 from django.conf import settings
@@ -8,7 +9,7 @@ from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 
 from numeric.forms import NumericForm, NumericFormMulti
-from numeric.numeric import Numeric, Point, calc
+from numeric.numeric import Numeric, Point, calc, draw_phase
 
 logger = logging.getLogger('Solver')
 solver = Numeric()
@@ -130,6 +131,11 @@ def manual(request):
                      alpha=0.75, color='red')
             fig.savefig(settings.STATIC_DIR + 'x.png')
             context['pics'].append('/static/x.png')
+
+            filename = 'phase.png'
+            filepath = settings.STATIC_DIR + filename
+            draw_phase(equation, 0, 0, x(T), 0, 1, filepath)
+            context['pics'].append('/static/' + filename)
 
             context['pics'].append(draw_pic('z(t)', z_tabs, 'z_t'))
             context['pics'].append(draw_pic('p(w)', p_tabs, 'p_w'))
