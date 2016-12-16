@@ -5,36 +5,22 @@ import matplotlib.pyplot as plt
 
 
 def calc(f, *args, **kwargs):
+    pre_imported = {
+        'sin': np.sin,
+        'cos': np.cos,
+        'exp': np.exp,
+        'pow': np.power,
+        'log': np.log,
+        'abs': np.abs,
+        'Pi': np.pi,
+        'e': np.e,
+    }
+    kwargs.update(pre_imported)
     kwargs['math'] = math
     kwargs['np'] = np
     kwargs['clamp'] = lambda q, x, y: max(x, min(y, q))
     kwargs['solver'] = Numeric()
     return eval(f, kwargs)
-
-
-class Bounds(object):
-    def __init__(self, x, y, w, h):
-        self.x = x
-        self.y = y
-        self.w = w
-        self.h = h
-
-    @property
-    def xm(self):
-        return self.x + self.w
-
-    @property
-    def ym(self):
-        return self.y + self.h
-
-    def union(self, r):
-        return Bounds.sides(min(self.x, r.x), max(self.xm, r.xm),
-                            min(self.y, r.y), max(self.ym, r.ym))
-
-
-Bounds.sides = lambda x, xm, y, ym: Bounds(x, y, xm - x, ym - y)
-Bounds.empty = Bounds(None, None, None, None)
-Bounds.empty.union = lambda r: r
 
 
 class Point(object):
@@ -48,17 +34,6 @@ class Point(object):
     def __str__(self):
         return '({:.2f}, {:.2f})'.format(self.x, self.y)
 
-    def clip_to(self, b):
-        self.x = min(max(self.x, b.x if b.w > 0 else b.xm), b.xm if b.w > 0 else b.x)
-        self.y = min(max(self.y, b.y if b.h > 0 else b.ym), b.ym if b.h > 0 else b.y)
-        return self
-
-    def scale_to(self, b):
-        return Point(self.x * b.w + b.x, self.y * b.h + b.y)
-
-    def scale_from(self, b):
-        return Point((self.x - b.x) / b.w, (self.y - b.y) / b.h)
-
 
 class Numeric(object):
     modes = {
@@ -70,12 +45,27 @@ class Numeric(object):
     def __init__(self, mode='simpson'):
         self.mode = mode
 
-    def integral(self, f, x0, f0, steps=100):
+    def integral(self, f, x0, f0, steps=100, T=None):
         p = Numeric.modes[self.mode]
 
         def _int(x):
             s = f0
             d = abs(x - x0) / steps
+
+            if T:
+                d = abs(T - x0) / steps
+
+                def res():
+                    s = f0
+                    for i in range(steps):
+                        s += p(f, x0 + d * i, d)
+                        yield s
+
+                tabs = [Point(x0 + d * t, res())
+                        for t in range(steps)]
+
+                return self.interpolate(tabs)
+
             for i in range(0, steps):
                 s = s + p(f, x0 + d * i, d)
             return s
