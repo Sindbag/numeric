@@ -77,7 +77,7 @@ def manual(request):
                 raise Exception('Hyperparam B must be in range [0; 1]')
 
             context['pics'] = []
-            prob = solver.freeze(solver.integral(dens, 0, 0, steps), 0, 1, steps)
+            prob = solver.integral(dens, 0, 0, steps, 1)
 
             def f(t, x, **kwargs):
                 return calc(function, x=x[0], t=t, y=x[1],
@@ -103,9 +103,9 @@ def manual(request):
 
             dx = solver.derivative(x)
             wp = lambda w: w * dens(w)
-            i_wp = solver.integral(wp, 0, 0, steps)
+            i_wp = solver.integral(wp, 0, 0, steps, 1)
             _f = lambda t: dx(t) * (i_wp(1) - i_wp(y(t)))
-            i_f = solver.integral(_f, 0, _f(0))
+            i_f = solver.integral(_f, 0, _f(0), steps, T)
             C1 = lambda B: 1 - (i_f(T) - i_f(0)) / (x(T) - x_st)
             C2 = lambda B: abs(x(T) - s(T)) / s(T)
 
@@ -175,7 +175,7 @@ def auto(request):
                                 'B end range must be bigger than B start.')
 
             context['pics'] = []
-            prob = solver.freeze(solver.integral(dens, 0, 0, steps), 0, 1, steps)
+            prob = solver.integral(dens, 0, 0, steps, 1)
 
             def f(t, x, B=b_st, **kwargs):
                 return calc(function, x=x[0], t=t, y=x[1],
@@ -194,7 +194,6 @@ def auto(request):
             C2 = None
             for _b in range(b_steps):
                 b = b_st + (b_end - b_st) *_b / b_steps
-                print(b)
 
                 def equation(t, x):
                     return [
@@ -210,13 +209,12 @@ def auto(request):
 
                 dx = solver.derivative(x)
                 wp = lambda w: w * dens(w)
-                i_wp = solver.freeze(solver.integral(wp, 0, 0, steps), 0, T, steps)
+                i_wp = solver.integral(wp, 0, 0, steps, 1)
                 _f = lambda t: dx(t) * (i_wp(1) - i_wp(y(t)))
-                i_f = solver.integral(_f, 0, 0)
+                i_f = solver.integral(_f, 0, 0, steps, T)
                 c1 = lambda B: 1 - (i_f(T) - i_f(0)) / (x(T) - x_st)
                 c2 = lambda B: abs(x(T) - s(T)) / s(T)
                 minim = c1(b) + 10 * c2(b)
-                print(minim)
 
                 if minim < glob_minimal:
                     glob_minimal = minim

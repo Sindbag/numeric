@@ -47,24 +47,23 @@ class Numeric(object):
 
     def integral(self, f, x0, f0, steps=100, T=None):
         p = Numeric.modes[self.mode]
+        if T:
+            d = abs(T - x0) / steps
+
+            def res():
+                s = f0
+                for i in range(steps):
+                    s += p(f, x0 + d * i, d)
+                    yield s
+
+            tabs = [Point(x0 + d * t, y)
+                    for t, y in enumerate(res())]
+
+            return self.interpolate(tabs)
 
         def _int(x):
             s = f0
             d = abs(x - x0) / steps
-
-            if T:
-                d = abs(T - x0) / steps
-
-                def res():
-                    s = f0
-                    for i in range(steps):
-                        s += p(f, x0 + d * i, d)
-                        yield s
-
-                tabs = [Point(x0 + d * t, res())
-                        for t in range(steps)]
-
-                return self.interpolate(tabs)
 
             for i in range(0, steps):
                 s = s + p(f, x0 + d * i, d)
