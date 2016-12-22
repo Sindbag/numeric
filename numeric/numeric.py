@@ -1,5 +1,7 @@
 import logging
 import math
+from copy import deepcopy
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -102,17 +104,14 @@ class Numeric(object):
              in enumerate(X)
              for j, cell
              in enumerate(row)]
-        U = [cell
-             for i, row
-             in enumerate(X)
-             for j, cell
-             in enumerate(row)]
+        U = deepcopy(X)
 
         for i in range(len(X)):
             j = i
             while not U[j][i]:
                 if j == len(X) - 1:
                     return None
+                j += 1
 
             if i != j:
                 a = E[i]
@@ -208,7 +207,7 @@ class Numeric(object):
             return L
 
         n = len(pts)
-        a = lambda i: 1 / (pts[i + 0].x - pts[i - 1].x)
+        a = lambda i: 1 / (pts[i].x - pts[i - 1].x)
         b = lambda i: (2 / (pts[i + 1].x - pts[i].x) if i < n - 1 else 0) + \
                       (2 / (pts[i].x - pts[i - 1].x) if i > 0 else 0)
         c = lambda i: 1 / (pts[i + 1].x - pts[i].x)
