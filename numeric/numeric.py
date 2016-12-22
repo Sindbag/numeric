@@ -232,7 +232,6 @@ class Numeric(object):
                    t * pts[L].y + \
                    t * (1 - t) * (a * (1 - t) + b * t)
 
-        f.points = pts
         return f
 
     def solve(self, f, df, steps=100):
